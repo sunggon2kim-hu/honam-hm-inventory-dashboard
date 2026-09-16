@@ -166,8 +166,14 @@ function build(opts) {
 
         const indexEntry = modelIndexMap.get(상품코드.toUpperCase());
         const 제품군매핑 = indexEntry ? resolveCategoryFromIndexRow(indexEntry.div, indexEntry.biz, indexEntry.ml, 상품명) : null;
-        const 제품군 = 제품군매핑 || extractCategory(상품명);
+        let 제품군 = 제품군매핑 || extractCategory(상품명);
         if (제품군매핑) 매핑적용건++; else 키워드폴백건++;
+
+        // 설치자재/부속자재 등 "자재"가 포함된 상품은 본 제품과 구분할 수 있도록 제품군명에 "자재"를 붙인다.
+        // 예: LSW430A.AKR "LG_TV 설치자재" -> TV자재
+        if (상품명.includes('자재') && !제품군.endsWith('자재')) {
+            제품군 = 제품군 + '자재';
+        }
 
         const 진열상태 = disposeMap[상품코드] || '진열대상';
         const 잔여재고 = Number(r['잔여재고']) || 0;
