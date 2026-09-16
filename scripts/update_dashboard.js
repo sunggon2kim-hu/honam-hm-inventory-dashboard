@@ -2,9 +2,10 @@
  * 재고 대시보드 데이터 업데이트 스크립트
  *
  * 사용법:
- *   node scripts/update_dashboard.js [--stock <판매재고현황.xlsx>] [--dispose <소진모델.xlsx>] [--branch 호남지사] [--exclude 지점A,지점B]
+ *   node scripts/update_dashboard.js [--stock <판매재고현황.xlsx>] [--dispose <소진모델.xlsx>]
+ *     [--model-index <모델별 index.xlsx>] [--branch 호남지사] [--exclude 지점A,지점B]
  *
- * 기본값은 현재 폴더의 판매재고현황_20260915.xlsx / 소진모델.xlsx / 호남지사 이다.
+ * 기본값은 현재 폴더의 판매재고현황_20260915.xlsx / 소진모델.xlsx / 모델별 index_2608.xlsx / 호남지사 이다.
  * 매달 새 원본 파일을 같은 폴더에 넣고 --stock, --dispose 옵션으로 파일명만 바꿔 실행하면
  * dashboard_data.json이 갱신되고, HTML은 그대로 그 데이터를 fetch해서 보여준다.
  */
@@ -22,6 +23,7 @@ function parseArgs() {
     const opts = {
         stock: '판매재고현황_20260915.xlsx',
         dispose: '소진모델.xlsx',
+        modelIndex: '모델별 index_2608.xlsx',
         branch: '호남지사',
         out: 'dashboard_data.json',
         exclude: DEFAULT_EXCLUDED_BRANCHES,
@@ -29,6 +31,7 @@ function parseArgs() {
     for (let i = 0; i < args.length; i++) {
         if (args[i] === '--stock') opts.stock = args[++i];
         else if (args[i] === '--dispose') opts.dispose = args[++i];
+        else if (args[i] === '--model-index') opts.modelIndex = args[++i];
         else if (args[i] === '--branch') opts.branch = args[++i];
         else if (args[i] === '--out') opts.out = args[++i];
         else if (args[i] === '--exclude') opts.exclude = args[++i].split(',').map(s => s.trim()).filter(Boolean);
@@ -56,6 +59,55 @@ function extractCategory(name) {
 }
 
 /**
+ * LG 공식 "모델별 index" 파일(사업부/Product Lvl4/ML Index 등 계층 분류 포함)을 읽어
+ * 모델코드(Model Suffix) → 대시보드 제품군 매핑을 만든다.
+ * 상품명 키워드 추정보다 훨씬 정확해서(코드 커버리지 약 99%), 우선적으로 이 매핑을 사용하고
+ * 매핑에 없는 코드만 extractCategory()로 상품명 키워드 추정 폴백을 쓴다.
+ */
+function resolveCategoryFromIndexRow(div, biz, ml, productName) {
+    div = div || '';
+    biz = biz || '';
+    ml = ml || '';
+
+    if (div === 'Commercial TV' || div === 'CRT TV' || div === 'LTV' || div === 'PTV' ||
+        ml.startsWith('ML20') || ml.startsWith('ML21') || ml.startsWith('ML22') || ml.startsWith('ML30')) return 'TV';
+    if (div === 'REF' || biz === 'Y01_냉장고' ||
+        ml.startsWith('ML11') || ml.startsWith('ML12') || ml.startsWith('ML13') || ml.startsWith('ML14') || ml.startsWith('ML15')) return '냉장고';
+    if (ml.startsWith('ML01') || ml.startsWith('ML02') || ml.startsWith('ML04')) return '세탁기';
+    if (ml.startsWith('ML03')) return '건조기';
+    if (div === 'Dishwasher' || biz === 'Y03_식기세척기') return '식기세척기';
+    if (div === 'RAC BD' || div === 'SAC' || biz === 'Y16_RAC' || biz === 'Y18_SAC') return '에어컨';
+    if (div === 'Cooking' || biz === 'Y02_빌트인쿠킹' || ml.startsWith('ML17') || ml.startsWith('ML18')) return '조리가전';
+    if (div === 'Robot Business Center' || biz === 'Y06_청소기' ||
+        ml.startsWith('ML08') || ml.startsWith('ML09') || ml.startsWith('ML10')) return '청소기';
+    if (div === 'Air Care') {
+        // "ML34_에어제품(공청기 外)"는 공청기 외 에어케어 잡화(제습기 포함)를 묶은 항목이라
+        // 상품명에 "제습기"가 있으면 제습기로, 나머지는 공기청정기로 본다.
+        if (String(productName).includes('제습기')) return '제습기';
+        return '공기청정기';
+    }
+    return null; // 매핑 없음 -> 키워드 추정 폴백
+}
+
+function loadModelIndexMap(filePath) {
+    const map = new Map();
+    if (!filePath || !fs.existsSync(filePath)) return map;
+
+    const wb = XLSX.readFile(filePath);
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: null, header: 1 }).slice(2);
+
+    for (const r of rows) {
+        const modelSuffix = r[2];   // Model Suffix (우리 상품코드와 동일 형식)
+        const div = r[4];           // Div.Name
+        const biz = r[10];          // 사업부_상세
+        const ml = r[11];           // ML Index
+        if (!modelSuffix) continue;
+        map.set(String(modelSuffix).trim().toUpperCase(), { div, biz, ml });
+    }
+    return map;
+}
+
+/**
  * 소진모델.xlsx는 "* 진열" / "* 소진" / "* 스탠바이미" 같은 섹션 제목 행이 섞인
  * 자유 서식 표라서, 헤더 위치를 찾지 않고 [모델명, 상태] 두 칸이 채워진
  * 데이터 행만 골라 사용한다. (컬럼 A는 순번/구분 등으로 섹션마다 형식이 다름)
@@ -79,11 +131,16 @@ function loadDisposeMap(filePath) {
 function build(opts) {
     const stockPath = path.isAbsolute(opts.stock) ? opts.stock : path.join(base, opts.stock);
     const disposePath = path.isAbsolute(opts.dispose) ? opts.dispose : path.join(base, opts.dispose);
+    const modelIndexPath = opts.modelIndex
+        ? (path.isAbsolute(opts.modelIndex) ? opts.modelIndex : path.join(base, opts.modelIndex))
+        : null;
 
     if (!fs.existsSync(stockPath)) throw new Error('재고 파일을 찾을 수 없습니다: ' + stockPath);
     if (!fs.existsSync(disposePath)) throw new Error('소진모델 파일을 찾을 수 없습니다: ' + disposePath);
 
     const disposeMap = loadDisposeMap(disposePath);
+    const modelIndexMap = loadModelIndexMap(modelIndexPath);
+    let 매핑적용건 = 0, 키워드폴백건 = 0;
 
     const wb = XLSX.readFile(stockPath);
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: null });
@@ -106,7 +163,12 @@ function build(opts) {
         const 상품코드 = String(r['상품코드']).trim();
         const 상품명 = String(r['상품명']).trim();
         const 지점 = String(r['인도처명']).trim();
-        const 제품군 = extractCategory(상품명);
+
+        const indexEntry = modelIndexMap.get(상품코드.toUpperCase());
+        const 제품군매핑 = indexEntry ? resolveCategoryFromIndexRow(indexEntry.div, indexEntry.biz, indexEntry.ml, 상품명) : null;
+        const 제품군 = 제품군매핑 || extractCategory(상품명);
+        if (제품군매핑) 매핑적용건++; else 키워드폴백건++;
+
         const 진열상태 = disposeMap[상품코드] || '진열대상';
         const 잔여재고 = Number(r['잔여재고']) || 0;
         const 당월판매 = Number(r['당월판매']) || 0;
@@ -140,7 +202,7 @@ function build(opts) {
         평균회전율: 전체데이터.length ? Number((회전율합 / 전체데이터.length).toFixed(2)) : 0,
     };
 
-    return { 전체데이터, 모델별현황, 통계 };
+    return { 전체데이터, 모델별현황, 통계, _meta: { 매핑적용건, 키워드폴백건 } };
 }
 
 function main() {
@@ -149,8 +211,12 @@ function main() {
     console.log(`소진모델 파일: ${opts.dispose}`);
     console.log(`대상 지사: ${opts.branch}`);
     console.log(`제외 지점(폐점 등): ${opts.exclude.join(', ') || '(없음)'}`);
+    console.log(`모델별 index 파일: ${opts.modelIndex || '(사용 안 함)'}`);
 
     const data = build(opts);
+    const meta = data._meta;
+    delete data._meta;
+
     const outPath = path.isAbsolute(opts.out) ? opts.out : path.join(base, opts.out);
     fs.writeFileSync(outPath, JSON.stringify(data, null, 0), 'utf-8');
 
@@ -162,6 +228,7 @@ function main() {
     console.log('총재고량:', data.통계.총재고량.toLocaleString());
     console.log('평균회전율:', data.통계.평균회전율);
     console.log('제품군분포:', data.통계.제품군분포);
+    console.log('모델 index 매핑 적용:', meta.매핑적용건, '/ 키워드 추정 폴백:', meta.키워드폴백건);
     console.log('\n생성 완료 ->', outPath);
 }
 
