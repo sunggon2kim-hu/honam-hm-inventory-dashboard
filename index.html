@@ -1,0 +1,1050 @@
+<title>호남팀 재고/진열 운영보드</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<style>
+    :root {
+        --page-1: #c05a63;
+        --page-2: #8a3d46;
+        --surface: #ffffff;
+        --surface-alt: #f8f9fa;
+        --surface-alt-2: #f5f5f5;
+        --border: #e0e0e0;
+        --border-soft: #f0f0f0;
+        --text: #2b2d3a;
+        --text-muted: #9798a5;
+        --text-soft: #686a78;
+        --accent: #b2545e;
+        --accent-strong: #8a3d46;
+        --accent-hover: #9c4650;
+        --success: #4caf50;
+        --success-bg: #e8f5e9;
+        --success-text: #2e7d32;
+        --warning: #ff9800;
+        --info: #b2545e;
+        --info-bg: #f4e8e9;
+        --info-text: #8a3d46;
+        --neutral-badge: #9e9e9e;
+        --btn-secondary-bg: #f0f0f0;
+        --btn-secondary-hover: #e0e0e0;
+        --row-hover: #f9fafc;
+        --shadow-soft: rgba(31, 34, 51, 0.1);
+        --shadow-strong: rgba(31, 34, 51, 0.18);
+        --overlay: rgba(20, 16, 32, 0.55);
+        --code-bg: #f5f5f5;
+    }
+
+    @media (prefers-color-scheme: dark) {
+        :root:not([data-theme="light"]) {
+            --page-1: #5c2c33;
+            --page-2: #3a2024;
+            --surface: #1c1d27;
+            --surface-alt: #22232f;
+            --surface-alt-2: #262735;
+            --border: #383a4a;
+            --border-soft: #2c2d3a;
+            --text: #e7e7ef;
+            --text-muted: #8d8ea0;
+            --text-soft: #b0b1c0;
+            --accent: #d99aa1;
+            --accent-strong: #e8bcc1;
+            --accent-hover: #e0aab0;
+            --success: #6fcf73;
+            --success-bg: #1d3320;
+            --success-text: #8fe092;
+            --warning: #ffb74d;
+            --info: #d99aa1;
+            --info-bg: #332226;
+            --info-text: #e0aab0;
+            --neutral-badge: #7d7e8c;
+            --btn-secondary-bg: #2a2b38;
+            --btn-secondary-hover: #34364580;
+            --row-hover: #23242f;
+            --shadow-soft: rgba(0, 0, 0, 0.35);
+            --shadow-strong: rgba(0, 0, 0, 0.5);
+            --overlay: rgba(0, 0, 0, 0.65);
+            --code-bg: #2a2b38;
+        }
+    }
+
+    :root[data-theme="dark"] {
+        --page-1: #5c2c33;
+        --page-2: #3a2024;
+        --surface: #1c1d27;
+        --surface-alt: #22232f;
+        --surface-alt-2: #262735;
+        --border: #383a4a;
+        --border-soft: #2c2d3a;
+        --text: #e7e7ef;
+        --text-muted: #8d8ea0;
+        --text-soft: #b0b1c0;
+        --accent: #d99aa1;
+        --accent-strong: #e8bcc1;
+        --accent-hover: #e0aab0;
+        --success: #6fcf73;
+        --success-bg: #1d3320;
+        --success-text: #8fe092;
+        --warning: #ffb74d;
+        --info: #d99aa1;
+        --info-bg: #332226;
+        --info-text: #e0aab0;
+        --neutral-badge: #7d7e8c;
+        --btn-secondary-bg: #2a2b38;
+        --btn-secondary-hover: #343645;
+        --row-hover: #23242f;
+        --shadow-soft: rgba(0, 0, 0, 0.35);
+        --shadow-strong: rgba(0, 0, 0, 0.5);
+        --overlay: rgba(0, 0, 0, 0.65);
+        --code-bg: #2a2b38;
+    }
+
+    * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+    }
+
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, var(--page-1) 0%, var(--page-2) 100%);
+        min-height: 100vh;
+        padding: 20px;
+        color: var(--text);
+    }
+
+    .container {
+        max-width: 1600px;
+        margin: 0 auto;
+        background: var(--surface);
+        border-radius: 12px;
+        box-shadow: 0 10px 40px var(--shadow-strong);
+        overflow: hidden;
+    }
+
+    .header {
+        background: linear-gradient(135deg, var(--page-1) 0%, var(--page-2) 100%);
+        color: white;
+        padding: 30px;
+        text-align: center;
+    }
+
+    .header h1 {
+        font-size: 28px;
+        margin-bottom: 10px;
+        text-wrap: balance;
+    }
+
+    .header .updated-at {
+        margin-top: 10px;
+        font-size: 12px;
+        opacity: 0.8;
+    }
+
+    .stats-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 20px;
+        padding: 30px;
+        background: var(--surface-alt);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .stat-card {
+        background: var(--surface);
+        padding: 20px;
+        border-radius: 8px;
+        text-align: center;
+        border-left: 4px solid var(--accent);
+        box-shadow: 0 2px 8px var(--shadow-soft);
+    }
+
+    .stat-card.warning { border-left-color: var(--warning); }
+    .stat-card.success { border-left-color: var(--success); }
+
+    .stat-value {
+        font-size: 26px;
+        font-weight: bold;
+        color: var(--accent);
+        margin-bottom: 5px;
+        font-variant-numeric: tabular-nums;
+    }
+
+    .stat-card.warning .stat-value { color: var(--warning); }
+    .stat-card.success .stat-value { color: var(--success); }
+
+    .stat-label {
+        font-size: 12px;
+        color: var(--text-muted);
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .controls {
+        padding: 30px;
+        background: var(--surface);
+        border-bottom: 1px solid var(--border);
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+        gap: 15px;
+    }
+
+    .control-group {
+        display: flex;
+        flex-direction: column;
+    }
+
+    .control-group label {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--accent);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.03em;
+    }
+
+    .control-group input,
+    .control-group select {
+        padding: 10px 12px;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        font-size: 14px;
+        transition: border-color 0.2s;
+        background: var(--surface);
+        color: var(--text);
+    }
+
+    .control-group input:focus,
+    .control-group select:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 18%, transparent);
+    }
+
+    .button-group {
+        display: flex;
+        gap: 10px;
+        align-items: flex-end;
+    }
+
+    .btn {
+        padding: 10px 20px;
+        border: none;
+        border-radius: 6px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+        font-size: 14px;
+    }
+
+    .btn:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+    }
+
+    .btn-primary { background: var(--accent); color: white; }
+    .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+
+    .btn-secondary { background: var(--btn-secondary-bg); color: var(--text); }
+    .btn-secondary:hover { background: var(--btn-secondary-hover); }
+
+    .content { padding: 30px; }
+
+    .tabs {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 20px;
+        border-bottom: 2px solid var(--border);
+    }
+
+    .tab-btn {
+        padding: 12px 24px;
+        border: none;
+        background: none;
+        cursor: pointer;
+        font-weight: 600;
+        color: var(--text-muted);
+        border-bottom: 3px solid transparent;
+        transition: all 0.2s;
+        font-size: 14px;
+    }
+
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); }
+    .tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    .table-wrapper {
+        overflow-x: auto;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px var(--shadow-soft);
+    }
+
+    table { width: 100%; border-collapse: collapse; font-size: 13px; }
+
+    thead {
+        background: var(--surface-alt-2);
+        font-weight: 600;
+        color: var(--accent);
+        text-transform: uppercase;
+    }
+
+    th {
+        padding: 12px;
+        text-align: left;
+        border-bottom: 2px solid var(--border);
+        cursor: pointer;
+        user-select: none;
+        white-space: nowrap;
+    }
+
+    th:hover { background: var(--row-hover); }
+    th:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+
+    td {
+        padding: 12px;
+        border-bottom: 1px solid var(--border-soft);
+        font-variant-numeric: tabular-nums;
+    }
+
+    tbody tr:hover { background: var(--row-hover); }
+
+    .status-badge {
+        display: inline-block;
+        padding: 4px 12px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: uppercase;
+        color: white;
+        white-space: nowrap;
+    }
+
+    .status-display { background: var(--success); }
+    .status-dispose { background: var(--warning); }
+    .status-unknown { background: var(--neutral-badge); }
+
+    .category-badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 4px;
+        font-size: 11px;
+        font-weight: 600;
+        background: var(--info-bg);
+        color: var(--info-text);
+        white-space: nowrap;
+    }
+
+    .stock-high { color: var(--success); font-weight: 600; }
+    .stock-medium { color: var(--warning); font-weight: 600; }
+    .stock-low { color: var(--text-muted); }
+
+    .model-cell,
+    .branch-cell {
+        cursor: pointer;
+        color: var(--accent);
+        text-decoration: underline;
+        font-weight: 500;
+        background: none;
+        border: none;
+        font: inherit;
+        padding: 0;
+        text-align: left;
+    }
+
+    .branch-cell { color: var(--accent-strong); }
+
+    .model-cell:hover { color: var(--accent-strong); }
+    .branch-cell:hover { color: var(--accent); }
+    .model-cell:focus-visible,
+    .branch-cell:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+    .modal-content.wide { max-width: 820px; }
+    .modal-table-wrapper { max-height: 400px; overflow-y: auto; }
+
+    .modal {
+        display: none;
+        position: fixed;
+        z-index: 1000;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        background-color: var(--overlay);
+        animation: fadeIn 0.2s;
+    }
+
+    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+    .modal-content {
+        background-color: var(--surface);
+        color: var(--text);
+        margin: 8% auto;
+        padding: 30px;
+        border-radius: 12px;
+        width: 90%;
+        max-width: 600px;
+        max-height: 80vh;
+        overflow-y: auto;
+        box-shadow: 0 10px 40px var(--shadow-strong);
+        animation: slideIn 0.2s;
+    }
+
+    @keyframes slideIn {
+        from { transform: translateY(-30px); opacity: 0; }
+        to { transform: translateY(0); opacity: 1; }
+    }
+
+    .close {
+        color: var(--text-muted);
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+        line-height: 20px;
+        background: none;
+        border: none;
+    }
+
+    .close:hover { color: var(--text); }
+
+    .modal-title {
+        color: var(--accent);
+        margin-bottom: 20px;
+        font-size: 20px;
+        font-weight: 600;
+    }
+
+    .modal-info {
+        margin-bottom: 20px;
+        padding: 15px;
+        background: var(--surface-alt-2);
+        border-radius: 6px;
+    }
+
+    .info-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .info-row:last-child { border-bottom: none; }
+
+    .info-label { font-weight: 600; color: var(--text-soft); font-size: 12px; }
+    .info-value { color: var(--text); font-weight: 500; text-align: right; }
+
+    .branch-list {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        max-height: 400px;
+        overflow-y: auto;
+    }
+
+    .branch-item {
+        padding: 12px;
+        border-bottom: 1px solid var(--border-soft);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .branch-item:last-child { border-bottom: none; }
+
+    .branch-name { font-weight: 600; color: var(--text); }
+
+    .branch-stock {
+        padding: 4px 12px;
+        background: var(--success-bg);
+        color: var(--success-text);
+        border-radius: 4px;
+        font-weight: 600;
+        font-size: 12px;
+        white-space: nowrap;
+    }
+
+    .chart-container {
+        position: relative;
+        height: 300px;
+        margin-bottom: 40px;
+        background: var(--surface);
+        padding: 20px;
+        border-radius: 8px;
+        box-shadow: 0 2px 8px var(--shadow-soft);
+    }
+
+    .no-data { text-align: center; padding: 40px; color: var(--text-muted); font-size: 16px; }
+
+    .info-message {
+        padding: 15px;
+        background: var(--info-bg);
+        border-left: 4px solid var(--info);
+        border-radius: 4px;
+        margin-bottom: 20px;
+        color: var(--info-text);
+        font-size: 13px;
+    }
+
+    code {
+        background: var(--code-bg);
+        padding: 3px 7px;
+        border-radius: 3px;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        font-family: '맑은 고딕', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif;
+    }
+
+    @media (max-width: 480px) {
+        body { padding: 10px; }
+        .stats-grid, .controls, .content { padding: 16px; }
+        .header { padding: 20px; }
+        .header h1 { font-size: 22px; }
+    }
+</style>
+<div class="container">
+    <div class="header">
+        <h1>🏪 혼매호남팀 HM 재고/진열 통합 운영 보드</h1>
+        <div class="updated-at" id="updatedAt"></div>
+    </div>
+
+    <div class="stats-grid">
+        <div class="stat-card success">
+            <div class="stat-value" id="statTotal">-</div>
+            <div class="stat-label">전체 재고품목</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statDisplayable">-</div>
+            <div class="stat-label">진열 대상</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-value" id="statDispose">-</div>
+            <div class="stat-label">소진 대상</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statCategories">-</div>
+            <div class="stat-label">제품군 수</div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-value" id="statBranches">-</div>
+            <div class="stat-label">보유 지점 수</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        <div class="control-group">
+            <label for="categoryFilter">📦 제품군</label>
+            <select id="categoryFilter">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="statusFilter">🏷️ 진열 상태</label>
+            <select id="statusFilter">
+                <option value="">전체</option>
+                <option value="진열대상">진열대상</option>
+                <option value="소진대상">소진대상</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="branchFilter">🏢 지점명</label>
+            <select id="branchFilter">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="productNameFilter">🏷️ 상품명</label>
+            <select id="productNameFilter">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="control-group">
+            <label for="productCodeFilter">🔢 모델명</label>
+            <select id="productCodeFilter">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="button-group">
+            <button class="btn btn-primary" id="searchBtn">🔎 검색</button>
+            <button class="btn btn-secondary" id="resetBtn">↺ 초기화</button>
+        </div>
+    </div>
+
+    <div class="content">
+        <div class="info-message">
+            💡 팁: 모델명을 클릭하면 다른 지점에서의 보유 현황을 확인할 수 있습니다.
+        </div>
+
+        <div class="tabs">
+            <button class="tab-btn active" data-tab="table">📊 재고 현황</button>
+            <button class="tab-btn" data-tab="analysis">📈 분석</button>
+        </div>
+
+        <div id="table" class="tab-content active">
+            <div class="table-wrapper">
+                <table>
+                    <thead>
+                        <tr>
+                            <th data-col="0">지점명</th>
+                            <th data-col="1">제품군</th>
+                            <th data-col="2">진열상태</th>
+                            <th data-col="3">모델명</th>
+                            <th data-col="4">상품명</th>
+                            <th data-col="5" style="text-align: right;">재고수량</th>
+                            <th data-col="6" style="text-align: right;">회전율</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody">
+                        <tr><td colspan="7" class="no-data">데이터 로딩 중...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+            <div style="margin-top: 15px; color: var(--text-muted); font-size: 12px;">
+                검색 결과: <span id="resultCount">0</span>건
+            </div>
+        </div>
+
+        <div id="analysis" class="tab-content">
+            <div class="chart-container">
+                <canvas id="categoryChart"></canvas>
+            </div>
+            <div class="chart-container">
+                <canvas id="statusChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="modelModal" class="modal">
+    <div class="modal-content">
+        <button class="close" id="modalCloseBtn" aria-label="닫기">&times;</button>
+        <div class="modal-title">📍 모델별 지점 보유 현황</div>
+        <div class="modal-info">
+            <div class="info-row">
+                <span class="info-label">상품명</span>
+                <span class="info-value" id="modalProductName">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">모델명</span>
+                <span class="info-value" id="modalProductCode">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">제품군</span>
+                <span class="info-value" id="modalCategory">-</span>
+            </div>
+            <div class="info-row">
+                <span class="info-label">진열상태</span>
+                <span class="info-value" id="modalStatus">-</span>
+            </div>
+        </div>
+        <div style="margin-bottom: 10px; font-weight: 600; color: var(--accent);">호남지사 지점별 재고</div>
+        <div class="branch-list" id="branchList"></div>
+    </div>
+</div>
+
+<div id="branchModal" class="modal">
+    <div class="modal-content wide">
+        <button class="close" id="branchModalCloseBtn" aria-label="닫기">&times;</button>
+        <div class="modal-title" id="branchModalTitle">📍 지점 재고 현황</div>
+        <div class="modal-info" id="branchModalStats"></div>
+        <div class="control-group" style="margin-bottom: 15px; max-width: 260px;">
+            <label for="branchModalCategoryFilter">📦 제품군으로 좁혀보기</label>
+            <select id="branchModalCategoryFilter">
+                <option value="">전체</option>
+            </select>
+        </div>
+        <div class="table-wrapper modal-table-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th>제품군</th>
+                        <th>진열상태</th>
+                        <th>모델명</th>
+                        <th>상품명</th>
+                        <th style="text-align: right;">재고</th>
+                        <th style="text-align: right;">회전율</th>
+                    </tr>
+                </thead>
+                <tbody id="branchModalTableBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    let allData = [];
+    let filteredData = [];
+    let modelDetails = {};
+    let currentSortColumn = -1;
+    let currentSortDirection = 'asc';
+    let categoryChart = null;
+    let statusChart = null;
+
+    async function loadData() {
+        try {
+            const response = await fetch('dashboard_data.json');
+            const data = await response.json();
+
+            allData = data['전체데이터'];
+            modelDetails = data['모델별현황'];
+
+            initializeFilters();
+            updateStats(data['통계']);
+            applyFilters();
+            createCharts(data['통계']);
+
+            const stamp = data['기준일'];
+            document.getElementById('updatedAt').textContent = stamp ? `기준일: ${stamp}` : '';
+        } catch (error) {
+            console.error('데이터 로드 오류:', error);
+            document.getElementById('tableBody').innerHTML = '<tr><td colspan="7" class="no-data">⚠️ 데이터를 불러올 수 없습니다.</td></tr>';
+        }
+    }
+
+    function initializeFilters() {
+        const categories = [...new Set(allData.map(item => item['제품군']))].sort((a, b) => a.localeCompare(b, 'ko'));
+        const branches = [...new Set(allData.map(item => item['지점']))].sort((a, b) => a.localeCompare(b, 'ko'));
+        const productCodes = [...new Set(allData.map(item => item['상품코드']))].sort();
+
+        const categorySelect = document.getElementById('categoryFilter');
+        categories.forEach(cat => {
+            const option = document.createElement('option');
+            option.value = cat;
+            option.textContent = cat;
+            categorySelect.appendChild(option);
+        });
+
+        const branchSelect = document.getElementById('branchFilter');
+        branches.forEach(branch => {
+            const option = document.createElement('option');
+            option.value = branch;
+            option.textContent = branch;
+            branchSelect.appendChild(option);
+        });
+
+        const productCodeSelect = document.getElementById('productCodeFilter');
+        productCodes.forEach(code => {
+            const option = document.createElement('option');
+            option.value = code;
+            option.textContent = code;
+            productCodeSelect.appendChild(option);
+        });
+
+        const productNames = [...new Set(allData.map(item => item['상품명']))].sort((a, b) => a.localeCompare(b, 'ko'));
+        const productNameSelect = document.getElementById('productNameFilter');
+        productNames.forEach(name => {
+            const option = document.createElement('option');
+            option.value = name;
+            option.textContent = name;
+            productNameSelect.appendChild(option);
+        });
+    }
+
+    function updateStats(stats) {
+        document.getElementById('statTotal').textContent = stats['총재고건'].toLocaleString();
+        document.getElementById('statDisplayable').textContent = stats['진열대상'].toLocaleString();
+        document.getElementById('statDispose').textContent = stats['소진대상'].toLocaleString();
+        document.getElementById('statCategories').textContent = Object.keys(stats['제품군분포']).length;
+        document.getElementById('statBranches').textContent = (stats['지점수'] ?? '-').toLocaleString();
+    }
+
+    function applyFilters() {
+        const category = document.getElementById('categoryFilter').value;
+        const status = document.getElementById('statusFilter').value;
+        const branch = document.getElementById('branchFilter').value;
+        const productName = document.getElementById('productNameFilter').value;
+        const productCode = document.getElementById('productCodeFilter').value;
+
+        filteredData = allData.filter(item => {
+            const matchesCategory = category === '' || item['제품군'] === category;
+            const matchesStatus = status === '' || item['진열상태'] === status;
+            const matchesBranch = branch === '' || item['지점'] === branch;
+            const matchesProductName = productName === '' || item['상품명'] === productName;
+            const matchesProductCode = productCode === '' || item['상품코드'] === productCode;
+
+            return matchesCategory && matchesStatus && matchesBranch &&
+                matchesProductName && matchesProductCode;
+        }).filter(item => item['잔여재고'] > 0);
+
+        if (currentSortColumn >= 0) {
+            sortFilteredData();
+        }
+
+        renderTable();
+        document.getElementById('resultCount').textContent = filteredData.length;
+    }
+
+    function escapeHtml(str) {
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+
+        if (filteredData.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="7" class="no-data">검색 결과가 없습니다.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = filteredData.map(item => {
+            const stockClass = item['잔여재고'] > 10 ? 'stock-high' :
+                               item['잔여재고'] > 3 ? 'stock-medium' : 'stock-low';
+
+            const statusBadge = item['진열상태'] === '진열대상' ? 'status-display' :
+                                item['진열상태'] === '소진대상' ? 'status-dispose' : 'status-unknown';
+
+            return `
+                <tr>
+                    <td><button class="branch-cell" data-branch="${escapeHtml(item['지점'])}">${escapeHtml(item['지점'])}</button></td>
+                    <td><span class="category-badge">${escapeHtml(item['제품군'])}</span></td>
+                    <td><span class="status-badge ${statusBadge}">${escapeHtml(item['진열상태'])}</span></td>
+                    <td><code>${escapeHtml(item['상품코드'])}</code></td>
+                    <td><button class="model-cell" data-code="${escapeHtml(item['상품코드'])}">${escapeHtml(item['상품명'])}</button></td>
+                    <td style="text-align: right;"><span class="${stockClass}">${item['잔여재고']}</span></td>
+                    <td style="text-align: right;">${item['회전율'].toFixed(2)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        tbody.querySelectorAll('.model-cell').forEach(btn => {
+            btn.addEventListener('click', () => showModelDetail(btn.dataset.code));
+        });
+        tbody.querySelectorAll('.branch-cell').forEach(btn => {
+            btn.addEventListener('click', () => showBranchDetail(btn.dataset.branch));
+        });
+    }
+
+    const columnMap = {
+        0: '지점', 1: '제품군', 2: '진열상태', 3: '상품코드',
+        4: '상품명', 5: '잔여재고', 6: '회전율'
+    };
+
+    function sortFilteredData() {
+        const sortKey = columnMap[currentSortColumn];
+        filteredData.sort((a, b) => {
+            let aVal = a[sortKey];
+            let bVal = b[sortKey];
+
+            if (typeof aVal === 'number' && typeof bVal === 'number') {
+                return currentSortDirection === 'asc' ? aVal - bVal : bVal - aVal;
+            }
+
+            aVal = String(aVal).toLowerCase();
+            bVal = String(bVal).toLowerCase();
+
+            return currentSortDirection === 'asc'
+                ? aVal.localeCompare(bVal, 'ko')
+                : bVal.localeCompare(aVal, 'ko');
+        });
+    }
+
+    function sortTable(columnIndex) {
+        if (currentSortColumn === columnIndex) {
+            currentSortDirection = currentSortDirection === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSortDirection = 'asc';
+            currentSortColumn = columnIndex;
+        }
+        sortFilteredData();
+        renderTable();
+    }
+
+    function resetFilters() {
+        document.getElementById('categoryFilter').value = '';
+        document.getElementById('statusFilter').value = '';
+        document.getElementById('branchFilter').value = '';
+        document.getElementById('productNameFilter').value = '';
+        document.getElementById('productCodeFilter').value = '';
+        applyFilters();
+    }
+
+    function showModelDetail(modelCode) {
+        const model = modelDetails[modelCode];
+        if (!model) {
+            alert('모델 정보를 찾을 수 없습니다.');
+            return;
+        }
+
+        document.getElementById('modalProductName').textContent = model['상품명'];
+        document.getElementById('modalProductCode').textContent = modelCode;
+        document.getElementById('modalCategory').textContent = model['제품군'];
+        document.getElementById('modalStatus').textContent = model['진열상태'];
+
+        const branchList = document.getElementById('branchList');
+        branchList.innerHTML = model['지점들'].map(branch => `
+            <div class="branch-item">
+                <span class="branch-name">${escapeHtml(branch['지점'])}</span>
+                <span class="branch-stock">${branch['재고']}대</span>
+            </div>
+        `).join('');
+
+        document.getElementById('modelModal').style.display = 'block';
+    }
+
+    function closeModal() {
+        document.getElementById('modelModal').style.display = 'none';
+    }
+
+    let currentBranchName = '';
+
+    function showBranchDetail(branchName) {
+        currentBranchName = branchName;
+        const items = allData.filter(item => item['지점'] === branchName && item['잔여재고'] > 0);
+        const categories = [...new Set(items.map(i => i['제품군']))].sort();
+
+        const select = document.getElementById('branchModalCategoryFilter');
+        select.innerHTML = '<option value="">전체</option>' +
+            categories.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+        select.value = '';
+
+        document.getElementById('branchModalTitle').textContent = `📍 ${branchName} 재고 현황`;
+        renderBranchModal();
+        document.getElementById('branchModal').style.display = 'block';
+    }
+
+    function renderBranchModal() {
+        const category = document.getElementById('branchModalCategoryFilter').value;
+        const items = allData.filter(item =>
+            item['지점'] === currentBranchName &&
+            item['잔여재고'] > 0 &&
+            (category === '' || item['제품군'] === category)
+        );
+
+        const totalStock = items.reduce((sum, i) => sum + i['잔여재고'], 0);
+        const displayCount = items.filter(i => i['진열상태'] === '진열대상').length;
+        const disposeCount = items.filter(i => i['진열상태'] === '소진대상').length;
+
+        document.getElementById('branchModalStats').innerHTML = `
+            <div class="info-row"><span class="info-label">품목 수</span><span class="info-value">${items.length}건</span></div>
+            <div class="info-row"><span class="info-label">총 재고량</span><span class="info-value">${totalStock}대</span></div>
+            <div class="info-row"><span class="info-label">진열대상 / 소진대상</span><span class="info-value">${displayCount}건 / ${disposeCount}건</span></div>
+        `;
+
+        const tbody = document.getElementById('branchModalTableBody');
+        if (items.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="6" class="no-data">해당 조건의 재고가 없습니다.</td></tr>';
+            return;
+        }
+
+        tbody.innerHTML = items.map(item => {
+            const stockClass = item['잔여재고'] > 10 ? 'stock-high' :
+                               item['잔여재고'] > 3 ? 'stock-medium' : 'stock-low';
+            const statusBadge = item['진열상태'] === '진열대상' ? 'status-display' :
+                                item['진열상태'] === '소진대상' ? 'status-dispose' : 'status-unknown';
+            return `
+                <tr>
+                    <td><span class="category-badge">${escapeHtml(item['제품군'])}</span></td>
+                    <td><span class="status-badge ${statusBadge}">${escapeHtml(item['진열상태'])}</span></td>
+                    <td><code>${escapeHtml(item['상품코드'])}</code></td>
+                    <td><button class="model-cell" data-code="${escapeHtml(item['상품코드'])}">${escapeHtml(item['상품명'])}</button></td>
+                    <td style="text-align: right;"><span class="${stockClass}">${item['잔여재고']}</span></td>
+                    <td style="text-align: right;">${item['회전율'].toFixed(2)}</td>
+                </tr>
+            `;
+        }).join('');
+
+        tbody.querySelectorAll('.model-cell').forEach(btn => {
+            btn.addEventListener('click', () => {
+                closeBranchModal();
+                showModelDetail(btn.dataset.code);
+            });
+        });
+    }
+
+    function closeBranchModal() {
+        document.getElementById('branchModal').style.display = 'none';
+    }
+
+    function createCharts(stats) {
+        const styles = getComputedStyle(document.documentElement);
+        const accent = styles.getPropertyValue('--accent').trim();
+        const success = styles.getPropertyValue('--success').trim();
+        const warning = styles.getPropertyValue('--warning').trim();
+        const textColor = styles.getPropertyValue('--text').trim();
+        const gridColor = styles.getPropertyValue('--border-soft').trim();
+
+        const categoryCtx = document.getElementById('categoryChart').getContext('2d');
+        const categoryData = Object.entries(stats['제품군분포']).sort((a, b) => b[1] - a[1]);
+
+        if (categoryChart) categoryChart.destroy();
+        categoryChart = new Chart(categoryCtx, {
+            type: 'bar',
+            data: {
+                labels: categoryData.map(item => item[0]),
+                datasets: [{
+                    label: '재고 수량',
+                    data: categoryData.map(item => item[1]),
+                    backgroundColor: accent,
+                    borderRadius: 6,
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } },
+                scales: {
+                    x: { beginAtZero: true, grid: { color: gridColor }, ticks: { color: textColor } },
+                    y: { grid: { display: false }, ticks: { color: textColor } }
+                }
+            }
+        });
+
+        const statusCtx = document.getElementById('statusChart').getContext('2d');
+        if (statusChart) statusChart.destroy();
+        statusChart = new Chart(statusCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['진열대상', '소진대상'],
+                datasets: [{
+                    data: [stats['진열대상'], stats['소진대상']],
+                    backgroundColor: [success, warning],
+                    borderColor: styles.getPropertyValue('--surface').trim(),
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom', labels: { color: textColor } } }
+            }
+        });
+    }
+
+    function switchTab(tabName, btn) {
+        document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById(tabName).classList.add('active');
+        btn.classList.add('active');
+    }
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab, btn));
+    });
+
+    document.querySelectorAll('th[data-col]').forEach(th => {
+        th.addEventListener('click', () => sortTable(Number(th.dataset.col)));
+    });
+
+    document.getElementById('searchBtn').addEventListener('click', applyFilters);
+    document.getElementById('resetBtn').addEventListener('click', resetFilters);
+    document.getElementById('modalCloseBtn').addEventListener('click', closeModal);
+    document.getElementById('branchModalCloseBtn').addEventListener('click', closeBranchModal);
+    document.getElementById('branchModalCategoryFilter').addEventListener('change', renderBranchModal);
+
+    window.addEventListener('click', event => {
+        const modelModal = document.getElementById('modelModal');
+        const branchModal = document.getElementById('branchModal');
+        if (event.target === modelModal) modelModal.style.display = 'none';
+        if (event.target === branchModal) branchModal.style.display = 'none';
+    });
+
+    loadData();
+</script>
